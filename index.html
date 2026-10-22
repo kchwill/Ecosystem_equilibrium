@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>생태계 관리자: 자연의 방어막을 지켜라</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: 'Pretendard', sans-serif; user-select: none; }
+    .hidden-stage { display: none !important; }
+    .active-card { border: 4px solid #3b82f6; background-color: #eff6ff; }
+    
+    .emoji-item { position: absolute; transition: all 0.5s ease-in-out; font-size: 1.5rem; }
+    .jungle-bg { background-color: #dcfce7; }
+    .village-bg { background-color: #e2e8f0; }
+
+    @keyframes popIn {
+      0% { transform: scale(0.9); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .modal-animate { animation: popIn 0.3s ease-out forwards; }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-800 relative">
+
+  <!-- 커스텀 알림 팝업 (모달) -->
+  <div id="customModal" class="hidden fixed inset-0 bg-black/60 z-[100] flex items-center justify-center backdrop-blur-sm transition-opacity">
+    <div class="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl modal-animate border-4 border-indigo-100">
+      <div id="customModalIcon" class="text-6xl mb-4">🚨</div>
+      <h3 id="customModalTitle" class="text-2xl font-bold mb-2 text-gray-800">알림</h3>
+      <p id="customModalText" class="text-gray-600 mb-8 font-medium whitespace-pre-line leading-relaxed">메시지 내용</p>
+      <button id="customModalBtn" class="bg-indigo-600 text-white px-8 py-3 rounded-full font-bold hover:bg-indigo-700 w-full shadow-md transition-colors text-lg">확인</button>
+    </div>
+  </div>
+
+  <header class="bg-white shadow-sm p-4 flex justify-between items-center sticky top-0 z-50">
+    <div class="flex items-center gap-2">
+      <span class="text-2xl">🌍</span>
+      <h1 class="text-xl font-bold text-green-600">생태계 평형 탐험대</h1>
+    </div>
+    <div class="flex gap-2">
+      <button onclick="showStage(1)" id="btnS1" class="px-4 py-2 rounded-full text-sm font-semibold bg-blue-100 text-blue-700 hover:bg-blue-200">Stage 1</button>
+      <button onclick="showStage(2)" id="btnS2" class="px-4 py-2 rounded-full text-sm font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200">Stage 2</button>
+      <button onclick="showStage(3)" id="btnS3" class="px-4 py-2 rounded-full text-sm font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200">Stage 3</button>
+    </div>
+  </header>
+
+  <main class="p-4 max-w-5xl mx-auto mt-4">
+    
+    <!-- Stage 1 -->
+    <section id="stage1" class="bg-white rounded-xl shadow-lg p-6">
+      <div class="text-center mb-6">
+        <h2 class="text-2xl font-bold text-indigo-600 mb-2">🎮 Stage 1: 편식은 금물! 서바이벌</h2>
+        <p class="text-gray-600">키보드 방향키나 마우스/터치로 개구리(🐸)를 조작해 애벌레(🐛)와 메뚜기(🦗)를 골고루 드세요!</p>
+      </div>
+      <div class="flex flex-col md:flex-row gap-6 items-start">
+        <div class="relative rounded-xl overflow-hidden shadow-inner border-4 border-green-200 w-full md:w-2/3 bg-green-50" style="height: 400px;" id="s1GameArea">
+          <canvas id="s1Canvas" class="w-full h-full cursor-crosshair"></canvas>
+          <div id="s1Overlay" class="absolute inset-0 bg-white/80 flex flex-col items-center justify-center">
+            <button onclick="startS1Game()" class="bg-indigo-600 text-white px-8 py-3 rounded-full font-bold text-lg hover:bg-indigo-700 shadow-lg transition-transform hover:scale-105">게임 시작</button>
+          </div>
+        </div>
+        <div class="w-full md:w-1/3 bg-gray-50 border rounded-xl p-6 shadow-sm">
+          <h3 class="text-lg font-bold text-center mb-4 bg-green-100 text-green-800 py-2 rounded-lg">균형 게이지</h3>
+          <div class="space-y-4">
+            <div>
+              <div class="flex justify-between text-sm font-bold mb-1">
+                <span>애벌레 🐛</span><span id="s1GrasshopperCnt">0</span>
+              </div>
+              <div class="w-full bg-gray-200 rounded-full h-4"><div id="s1BarG" class="bg-green-500 h-4 rounded-full" style="width: 0%"></div></div>
+            </div>
+            <div>
+              <div class="flex justify-between text-sm font-bold mb-1">
+                <span>메뚜기 🦗</span><span id="s1FlyCnt">0</span>
+              </div>
+              <div class="w-full bg-gray-200 rounded-full h-4"><div id="s1BarF" class="bg-amber-500 h-4 rounded-full" style="width: 0%"></div></div>
+            </div>
+          </div>
+          <div class="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-center">
+            <p class="text-sm font-bold text-yellow-800">목표: 각각 10마리 이상</p>
+            <p class="text-xs text-red-600 mt-1">주의: 8마리 이상 차이나면 실패!</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Stage 2 -->
+    <section id="stage2" class="hidden-stage bg-white rounded-xl shadow-lg p-6">
+      <div class="flex justify-between items-end mb-4">
+        <div class="text-left">
+          <h2 class="text-2xl font-bold text-red-600 mb-2">🔥 Stage 2: 생태계 파괴와 바이러스의 역습</h2>
+          <p class="text-gray-600">카드를 순서대로 클릭하여 서식지 파괴가 어떤 결과를 초래하는지 관찰해 보세요.</p>
+        </div>
+        <div class="flex gap-2">
+          <!-- 데이터 추출 (CSV) 버튼 -->
+          <button onclick="downloadS2DataCSV()" class="px-4 py-2 bg-indigo-100 text-indigo-700 rounded-lg font-bold hover:bg-indigo-200 border transition-colors shadow-sm">
+            📊 데이터 추출 (CSV)
+          </button>
+          <button onclick="resetStage2()" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-bold hover:bg-gray-200 border transition-colors shadow-sm">
+            🔄 초기화
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-5 gap-2 mb-6">
+        <div onclick="triggerS2Step(1)" id="s2Card1" class="border p-2 rounded-lg cursor-pointer text-center hover:bg-gray-50 transition-colors active-card">
+          <div class="text-2xl mb-1">🚜</div><div class="text-xs font-bold">1. 인간의 침입</div>
+        </div>
+        <div onclick="triggerS2Step(2)" id="s2Card2" class="border p-2 rounded-lg cursor-pointer text-center hover:bg-gray-50 transition-colors opacity-50">
+          <div class="text-2xl mb-1">🌴</div><div class="text-xs font-bold">2. 생산자 파괴</div>
+        </div>
+        <div onclick="triggerS2Step(3)" id="s2Card3" class="border p-2 rounded-lg cursor-pointer text-center hover:bg-gray-50 transition-colors opacity-50">
+          <div class="text-2xl mb-1">🦇</div><div class="text-xs font-bold">3. 박쥐의 이동</div>
+        </div>
+        <div onclick="triggerS2Step(4)" id="s2Card4" class="border p-2 rounded-lg cursor-pointer text-center hover:bg-gray-50 transition-colors opacity-50">
+          <div class="text-2xl mb-1">🧍</div><div class="text-xs font-bold">4. 동물-인간 접촉</div>
+        </div>
+        <div onclick="triggerS2Step(5)" id="s2Card5" class="border p-2 rounded-lg cursor-pointer text-center hover:bg-gray-50 transition-colors opacity-50">
+          <div class="text-2xl mb-1">🦠</div><div class="text-xs font-bold">5. 스필오버 발생</div>
+        </div>
+      </div>
+
+      <div class="p-3 bg-red-50 text-red-700 font-bold text-center rounded-lg mb-4" id="s2WarningText">
+        평화로운 밀림입니다. 개발을 시작하려면 [1. 인간의 침입] 카드를 클릭하세요.
+      </div>
+
+      <div class="flex h-64 w-full border-4 border-green-200 rounded-xl overflow-hidden relative">
+        <div id="jungleArea" class="jungle-bg relative overflow-hidden transition-all duration-300" style="width: 70%;">
+          <div class="absolute top-2 left-2 font-bold text-green-800 bg-white/70 px-2 rounded">🌴 야생 밀림</div>
+          <div id="jungleEmojis" class="w-full h-full relative"></div>
+        </div>
+        <div id="villageArea" class="village-bg relative overflow-hidden transition-all duration-300 border-l-4 border-dashed border-gray-400" style="width: 30%;">
+          <div class="absolute top-2 left-2 font-bold text-gray-700 bg-white/70 px-2 rounded">🏠 마을 및 거주지</div>
+          <div id="villageEmojis" class="w-full h-full relative"></div>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap justify-center gap-4 text-sm font-semibold mt-2 mb-6 p-2 bg-gray-100 rounded-lg text-gray-700">
+        <span>🌴/🍌 과일나무 (생산자)</span>
+        <span>🦍/🐆 포식자·초식동물</span>
+        <span class="text-purple-700">🦇 과일박쥐 (자연 숙주)</span>
+        <span class="text-blue-700">🧍 인간 (주민·개발자)</span>
+        <span class="text-red-600">🤒/💀 바이러스 감염·사망</span>
+      </div>
+
+      <div class="h-48 w-full mb-4">
+        <canvas id="s2Chart"></canvas>
+      </div>
+
+      <div class="p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-900 leading-relaxed shadow-sm">
+        <strong class="text-base text-blue-700">📊 그래프 해설:</strong> 
+        서식지 파괴율(시간)이 증가할수록 초록색(생산자)과 주황색(야생동물) 선이 하락합니다. 
+        반면, 살 곳을 잃은 보라색 선(과일박쥐)이 마을로 유입되며 상승곡선을 그리고, 결국 인간과 접촉해 바이러스가 퍼지면서 
+        파란색 선(건강한 인간)이 급감하는 <strong>'스필오버(Spillover, 인수공통 감염병 전파)'</strong> 현상을 시각적으로 보여줍니다.<br>
+        <span class="text-indigo-600 font-bold">💡 우측 상단의 [데이터 추출]을 누르면 이 시뮬레이션 수치를 구글 시트나 파이썬에서 인공지능 분석용으로 활용할 수 있습니다!</span>
+      </div>
+    </section>
+
+    <!-- Stage 3 -->
+    <section id="stage3" class="hidden-stage bg-white rounded-xl shadow-lg p-6">
+      <div class="text-center mb-6">
+        <h2 class="text-2xl font-bold text-green-600 mb-2">🧩 Stage 3: 건강한 먹이그물 복원하기</h2>
+        <p class="text-gray-600 font-medium mb-1">마우스로 <span class="font-bold text-blue-600">[먹히는 생물]</span>을 먼저 클릭하고 <span class="font-bold text-red-600">[먹는 생물]</span>을 클릭하여 올바른 관계를 연결하세요!</p>
+        <p class="text-sm text-indigo-500 font-bold bg-indigo-50 inline-block px-3 py-1 rounded-full mb-2">목표: 숲속의 순수 자연 먹이그물 6개를 완성하여, 인간을 전염병으로부터 안전하게 분리하세요.</p>
+        <div class="bg-red-50 text-red-700 text-sm font-bold px-4 py-2 rounded-lg mt-2 inline-block shadow-sm">
+          💡 힌트: 박쥐가 떨어뜨린 과일을 고릴라나 멧돼지가 먹고, 병든 동물을 인간이 접촉하면 바이러스가 퍼집니다. 건강한 생태계는 이를 분리하여 막아주죠!
+        </div>
+      </div>
+      
+      <div class="relative w-full h-[500px] bg-blue-50/50 rounded-xl border-4 border-dashed border-gray-300 overflow-hidden" id="s3Container">
+        <canvas id="s3Canvas" class="absolute inset-0 w-full h-full z-10"></canvas>
+        <div id="s3Nodes" class="absolute inset-0 w-full h-full z-20"></div>
+        
+        <button id="s3ViewMsgBtn" onclick="showS3Success()" class="hidden absolute top-4 right-4 z-40 bg-green-500 text-white px-5 py-2 rounded-full font-bold shadow-lg hover:bg-green-600 animate-pulse transition-transform hover:scale-105 border-2 border-white">
+          🎉 성공 메시지 보기
+        </button>
+
+        <div id="s3EndScreen" class="hidden absolute inset-0 bg-black/30 backdrop-blur-sm z-30 flex items-center justify-center">
+          <div class="bg-white p-8 rounded-3xl shadow-2xl border-4 border-green-500 modal-animate flex flex-col items-center text-center max-w-lg mx-4">
+            <div class="text-6xl mb-4">🌲</div>
+            <h2 class="text-3xl font-bold mb-4 text-green-600">건강한 생태계 복원 성공!</h2>
+            <p class="text-lg text-gray-700 font-medium px-2 leading-relaxed mb-6">
+              "복잡하게 얽힌 <strong>자연의 먹이그물(Food Web)</strong>이 완성되었습니다.<br>
+              숲이 울창하게 유지되면, 야생동물과 인간의 서식지가 분리되어 <strong>스필오버를 예방</strong>할 수 있습니다.<br>
+              <strong class="text-green-700 block mt-2">생물 다양성 보전이 곧 인류를 지키는 백신입니다.</strong>"
+            </p>
+            <div class="flex gap-4 w-full justify-center">
+              <button onclick="hideS3Success()" class="px-6 py-3 bg-gray-100 text-gray-700 font-bold rounded-full hover:bg-gray-200 shadow-md text-lg transition-transform hover:scale-105">
+                👀 그물 보기
+              </button>
+              <button onclick="resetS3()" class="px-6 py-3 bg-green-500 text-white font-bold rounded-full hover:bg-green-600 shadow-md text-lg transition-transform hover:scale-105">
+                🔄 다시하기
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <button onclick="resetS3()" class="mt-4 px-4 py-3 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 font-bold w-full text-lg shadow-sm transition-colors">🗑️ 선 모두 지우기</button>
+    </section>
+
+  </main>
+
+  <script>
+    function showCustomAlert(icon, title, text, callback) {
+      document.getElementById('customModalIcon').innerText = icon;
+      document.getElementById('customModalTitle').innerText = title;
+      document.getElementById('customModalText').innerText = text;
+      
+      const modal = document.getElementById('customModal');
+      const btn = document.getElementById('customModalBtn');
+      
+      modal.classList.remove('hidden');
+      
+      btn.onclick = () => {
+        modal.classList.add('hidden');
+        if (callback) callback();
+      };
+    }
+
+    function showStage(stageNum) {
+      document.getElementById('stage1').classList.add('hidden-stage');
+      document.getElementById('stage2').classList.add('hidden-stage');
+      document.getElementById('stage3').classList.add('hidden-stage');
+      
+      document.getElementById('btnS1').className = "px-4 py-2 rounded-full text-sm font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200";
+      document.getElementById('btnS2').className = "px-4 py-2 rounded-full text-sm font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200";
+      document.getElementById('btnS3').className = "px-4 py-2 rounded-full text-sm font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200";
+
+      document.getElementById('stage' + stageNum).classList.remove('hidden-stage');
+      document.getElementById('btnS' + stageNum).className = "px-4 py-2 rounded-full text-sm font-semibold bg-blue-100 text-blue-700 hover:bg-blue-200";
+
+      if(stageNum === 2 && !s2ChartInstance) initStage2();
+      if(stageNum === 3 && !s3Initialized) initStage3();
+    }
+
+    const canvas1 = document.getElementById('s1Canvas');
+    const ctx1 = canvas1.getContext('2d');
+    let s1AnimId, s1GameActive = false;
+    let frog = { x: 200, y: 200, size: 30, speed: 5 };
+    let bugs = [];
+    let scoreG = 0, scoreF = 0;
+    const keys = {};
+
+    window.addEventListener('keydown', e => { keys[e.key] = true; });
+    window.addEventListener('keyup', e => { keys[e.key] = false; });
+    
+    function moveToPointer(e) {
+      if(!s1GameActive) return;
+      const rect = canvas1.getBoundingClientRect();
+      let clientX = e.clientX;
+      let clientY = e.clientY;
+      if (e.touches && e.touches.length > 0) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+      }
+      frog.x = clientX - rect.left;
+      frog.y = clientY - rect.top;
+    }
+    canvas1.addEventListener('mousemove', moveToPointer);
+    canvas1.addEventListener('touchmove', moveToPointer, {passive: false});
+
+    function startS1Game() {
+      document.getElementById('s1Overlay').classList.add('hidden');
+      canvas1.width = document.getElementById('s1GameArea').clientWidth;
+      canvas1.height = document.getElementById('s1GameArea').clientHeight;
+      frog.x = canvas1.width / 2;
+      frog.y = canvas1.height / 2;
+      scoreG = 0; scoreF = 0;
+      updateS1UI();
+      bugs = [];
+      for(let i=0; i<15; i++) spawnBug();
+      s1GameActive = true;
+      s1Loop();
+    }
+
+    function spawnBug() {
+      bugs.push({
+        type: Math.random() > 0.5 ? 'G' : 'F',
+        x: Math.random() * (canvas1.width - 20) + 10,
+        y: Math.random() * (canvas1.height - 20) + 10,
+        vx: (Math.random() - 0.5) * 3,
+        vy: (Math.random() - 0.5) * 3
+      });
+    }
+
+    function updateS1UI() {
+      document.getElementById('s1GrasshopperCnt').innerText = scoreG;
+      document.getElementById('s1FlyCnt').innerText = scoreF;
+      document.getElementById('s1BarG').style.width = Math.min((scoreG/10)*100, 100) + '%';
+      document.getElementById('s1BarF').style.width = Math.min((scoreF/10)*100, 100) + '%';
+    }
+
+    function s1Loop() {
+      if(!s1GameActive) return;
+      ctx1.clearRect(0, 0, canvas1.width, canvas1.height);
+
+      if(keys['ArrowLeft']) frog.x -= frog.speed;
+      if(keys['ArrowRight']) frog.x += frog.speed;
+      if(keys['ArrowUp']) frog.y -= frog.speed;
+      if(keys['ArrowDown']) frog.y += frog.speed;
+      
+      frog.x = Math.max(15, Math.min(canvas1.width - 15, frog.x));
+      frog.y = Math.max(15, Math.min(canvas1.height - 15, frog.y));
+
+      ctx1.font = '30px Arial';
+      ctx1.textAlign = 'center';
+      ctx1.textBaseline = 'middle';
+      ctx1.fillText('🐸', frog.x, frog.y);
+
+      for(let i=bugs.length-1; i>=0; i--) {
+        let b = bugs[i];
+        b.x += b.vx; b.y += b.vy;
+        if(b.x < 10 || b.x > canvas1.width-10) b.vx *= -1;
+        if(b.y < 10 || b.y > canvas1.height-10) b.vy *= -1;
+
+        // 초록색 애벌레(G)와 주황색 메뚜기(F) 렌더링
+        ctx1.font = '20px Arial';
+        ctx1.fillText(b.type === 'G' ? '🐛' : '🦗', b.x, b.y);
+
+        const dist = Math.hypot(frog.x - b.x, frog.y - b.y);
+        if(dist < 25) {
+          b.type === 'G' ? scoreG++ : scoreF++;
+          bugs.splice(i, 1);
+          spawnBug();
+          updateS1UI();
+          checkS1Condition();
+        }
+      }
+      s1AnimId = requestAnimationFrame(s1Loop);
+    }
+
+    function checkS1Condition() {
+      if(Math.abs(scoreG - scoreF) >= 8) {
+        s1GameActive = false;
+        showCustomAlert('🚨', '균형 붕괴!', '한 종류만 너무 많이 먹어서 생태계 평형이 무너졌습니다.', () => {
+          document.getElementById('s1Overlay').classList.remove('hidden');
+        });
+      } else if (scoreG >= 10 && scoreF >= 10) {
+        s1GameActive = false;
+        showCustomAlert('🎉', '클리어!', '기초적인 풀밭 생태계를 지켜냈습니다!\n이제 더 복잡하고 위험한 \'열대 밀림\'으로 이동해 전염병을 막아볼까요?', () => {
+          showStage(2);
+        });
+      }
+    }
+
+    let s2ChartInstance = null;
+    let s2DataObj = { labels: [], trees: [], animals: [], bats: [], humans: [] };
+    let s2Interval = null;
+    let s2CurrentTarget = 0; 
+    let s2CurrentProgress = 0;
+    let vTrees = [], vAnimals = [], vBats = [], vHumans = [];
+
+    function initStage2() {
+      const jArea = document.getElementById('jungleEmojis');
+      const vArea = document.getElementById('villageEmojis');
+      jArea.innerHTML = ''; vArea.innerHTML = '';
+      vTrees = []; vAnimals = []; vBats = []; vHumans = [];
+
+      for(let i=0; i<40; i++) vTrees.push(createEmoji(jArea, Math.random()>0.5?'🌴':'🍌'));
+      for(let i=0; i<15; i++) vAnimals.push(createEmoji(jArea, Math.random()>0.5?'🦍':'🐆'));
+      for(let i=0; i<20; i++) vBats.push(createEmoji(jArea, '🦇'));
+      for(let i=0; i<10; i++) vHumans.push(createEmoji(vArea, Math.random()>0.5?'🧍':'👷'));
+
+      if(s2ChartInstance) {
+        s2ChartInstance.destroy();
+      }
+
+      s2DataObj = { labels: [], trees: [], animals: [], bats: [], humans: [] };
+
+      const ctx = document.getElementById('s2Chart').getContext('2d');
+      s2ChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: s2DataObj.labels,
+          datasets: [
+            { label: '과일나무 (생산자)', data: s2DataObj.trees, borderColor: '#22c55e', backgroundColor: '#22c55e', tension: 0.2 },
+            { label: '포식자/초식동물', data: s2DataObj.animals, borderColor: '#f97316', backgroundColor: '#f97316', tension: 0.2 },
+            { label: '마을 유입 과일박쥐', data: s2DataObj.bats, borderColor: '#8b5cf6', backgroundColor: '#8b5cf6', tension: 0.2 },
+            { label: '건강한 인간', data: s2DataObj.humans, borderColor: '#3b82f6', backgroundColor: '#3b82f6', tension: 0.2 }
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          animation: { duration: 0 },
+          scales: {
+            x: { title: { display: true, text: '서식지 파괴 진행률 (%)' } },
+            y: { beginAtZero: true, max: 45 }
+          }
+        }
+      });
+
+      recordS2Data();
+    }
+
+    function createEmoji(parent, icon) {
+      const el = document.createElement('div');
+      el.className = 'emoji-item';
+      el.innerText = icon;
+      el.style.left = (10 + Math.random() * 80) + '%';
+      el.style.top = (10 + Math.random() * 80) + '%';
+      parent.appendChild(el);
+      return el;
+    }
+
+    function resetStage2() {
+      if(s2Interval) clearInterval(s2Interval);
+      s2CurrentTarget = 0;
+      s2CurrentProgress = 0;
+      
+      for(let i=1; i<=5; i++) {
+        const card = document.getElementById('s2Card' + i);
+        if(i === 1) {
+          card.classList.remove('opacity-50');
+          card.classList.add('active-card');
+        } else {
+          card.classList.add('opacity-50');
+          card.classList.remove('active-card');
+        }
+      }
+      
+      document.getElementById('s2WarningText').innerText = "평화로운 밀림입니다. 개발을 시작하려면 [1. 인간의 침입] 카드를 클릭하세요.";
+      document.getElementById('jungleArea').style.width = '70%';
+      document.getElementById('villageArea').style.width = '30%';
+      
+      initStage2();
+    }
+
+    function triggerS2Step(stepNum) {
+      for(let i=1; i<=5; i++) {
+        const card = document.getElementById('s2Card' + i);
+        if(i <= stepNum) {
+          card.classList.remove('opacity-50');
+          card.classList.add('active-card');
+        } else {
+          card.classList.add('opacity-50');
+          card.classList.remove('active-card');
+        }
+      }
+
+      const texts = [
+        "평화로운 밀림입니다. 개발을 시작하려면 [1. 인간의 침입] 카드를 클릭하세요.",
+        "🚜 불도저와 전기톱으로 밀림이 깎여나가기 시작합니다.",
+        "🔥 서식지가 줄어들고 과일나무(생산자)가 사라지고 있습니다.",
+        "🦇 살 곳과 먹이를 잃은 과일박쥐들이 도심(마을) 방향으로 쫓겨납니다.",
+        "⚠️ 마을로 내려온 박쥐들이 농작물을 먹고, 인간과 빈번하게 접촉합니다.",
+        "🦠 스필오버 발생! 야생동물의 바이러스가 인간에게 전염되었습니다."
+      ];
+      document.getElementById('s2WarningText').innerText = texts[stepNum];
+
+      s2CurrentTarget = stepNum * 20; 
+
+      if(s2Interval) clearInterval(s2Interval);
+      s2Interval = setInterval(() => {
+        if(s2CurrentProgress < s2CurrentTarget) s2CurrentProgress++;
+        else if (s2CurrentProgress > s2CurrentTarget) s2CurrentProgress--;
+        else {
+          clearInterval(s2Interval);
+          return;
+        }
+        applyS2Visuals(s2CurrentProgress);
+        if(s2CurrentProgress % 5 === 0) recordS2Data(); 
+      }, 50);
+    }
+
+    function applyS2Visuals(prog) {
+      const jungleW = 70 - (prog / 2); 
+      document.getElementById('jungleArea').style.width = jungleW + '%';
+      document.getElementById('villageArea').style.width = (100 - jungleW) + '%';
+
+      const visibleTrees = Math.max(0, Math.floor(40 - (prog * 0.4)));
+      vTrees.forEach((t, i) => { t.style.opacity = i < visibleTrees ? 1 : 0; });
+
+      const visibleAnimals = Math.max(0, Math.floor(15 - (prog * 0.2)));
+      vAnimals.forEach((a, i) => { 
+        if(i >= visibleAnimals && a.innerText !== '💀') a.innerText = '💀'; 
+        a.style.opacity = i < visibleAnimals ? 1 : (prog > 80 ? 0 : 0.5); 
+      });
+
+      const movedBatsCount = Math.floor(prog * 0.2); 
+      vBats.forEach((b, i) => {
+        if(i < movedBatsCount) {
+          if(b.parentElement.id === 'jungleEmojis') {
+            document.getElementById('villageEmojis').appendChild(b);
+            b.style.left = (10 + Math.random() * 80) + '%'; 
+          }
+        } else {
+          if(b.parentElement.id === 'villageEmojis') {
+            document.getElementById('jungleEmojis').appendChild(b);
+          }
+        }
+      });
+
+      const sickHumans = Math.max(0, Math.floor((prog - 50) * 0.2)); 
+      vHumans.forEach((h, i) => {
+        if(i < sickHumans) {
+          h.innerText = prog > 90 ? '💀' : '🤒';
+        } else {
+          h.innerText = '🧍';
+        }
+      });
+    }
+
+    function recordS2Data() {
+      const treesCnt = Math.max(0, Math.floor(40 - (s2CurrentProgress * 0.4)));
+      const aniCnt = Math.max(0, Math.floor(15 - (s2CurrentProgress * 0.2)));
+      const batCnt = Math.floor(s2CurrentProgress * 0.2); 
+      const sickCnt = Math.max(0, Math.floor((s2CurrentProgress - 50) * 0.2));
+      const healthyCnt = 10 - sickCnt;
+
+      s2DataObj.labels.push(s2CurrentProgress);
+      s2DataObj.trees.push(treesCnt);
+      s2DataObj.animals.push(aniCnt);
+      s2DataObj.bats.push(batCnt);
+      s2DataObj.humans.push(healthyCnt);
+
+      if(s2DataObj.labels.length > 25) {
+        s2DataObj.labels.shift(); s2DataObj.trees.shift();
+        s2DataObj.animals.shift(); s2DataObj.bats.shift(); s2DataObj.humans.shift();
+      }
+      s2ChartInstance.update();
+    }
+
+    /* ================= CSV 다운로드 함수 ================= */
+    function downloadS2DataCSV() {
+      if (s2DataObj.labels.length === 0) {
+        showCustomAlert('ℹ️', '데이터가 없습니다', '먼저 시뮬레이션 카드를 클릭하여 진행률을 올려주세요!');
+        return;
+      }
+
+      let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
+      csvContent += "진행률(%),과일나무(생산자),포식자/초식동물(야생동물),도심유입 과일박쥐,건강한 인간\n";
+
+      for (let i = 0; i < s2DataObj.labels.length; i++) {
+        let row = [
+          s2DataObj.labels[i],
+          s2DataObj.trees[i],
+          s2DataObj.animals[i],
+          s2DataObj.bats[i],
+          s2DataObj.humans[i]
+        ];
+        csvContent += row.join(",") + "\n";
+      }
+
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", "ecosystem_spillover_data.csv");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      showCustomAlert('📊', '데이터 추출 완료!', '다운로드된 CSV 파일을 구글 스프레드시트나 파이썬(Pandas)에 불러와서\n서식지 파괴가 각 개체 수에 미치는 영향을 데이터로 분석해 보세요!');
+    }
+
+    /* ================= Stage 3 ================= */
+    let s3Initialized = false;
+    
+    const puzzleNodes = [
+      { id: 'tree', emoji: '🌴', label: '과일나무', type: 'producer', x: 15, y: 50 },
+      { id: 'bat', emoji: '🦇', label: '과일박쥐', type: 'consumer1', x: 40, y: 20 },
+      { id: 'gorilla', emoji: '🦍', label: '고릴라', type: 'consumer1', x: 40, y: 50 },
+      { id: 'boar', emoji: '🐗', label: '숲멧돼지', type: 'consumer1', x: 40, y: 80 },
+      { id: 'leopard', emoji: '🐆', label: '표범', type: 'consumer2', x: 70, y: 35 },
+      { id: 'snake', emoji: '🐍', label: '비단뱀', type: 'consumer2', x: 70, y: 65 },
+      { id: 'human', emoji: '🧍', label: '인간', type: 'human', x: 90, y: 50 }
+    ];
+    
+    let s3Edges = [];
+    let s3SelectedNode = null;
+    
+    const requiredEdges = [
+      { from: 'tree', to: 'bat' }, { from: 'tree', to: 'gorilla' }, { from: 'tree', to: 'boar' },
+      { from: 'bat', to: 'snake' }, { from: 'gorilla', to: 'leopard' }, { from: 'boar', to: 'leopard' }
+    ];
+
+    function initStage3() {
+      s3Initialized = true;
+      const container = document.getElementById('s3Nodes');
+      container.innerHTML = '';
+      puzzleNodes.forEach(n => {
+        const div = document.createElement('div');
+        div.className = 'absolute p-3 bg-white rounded-2xl shadow-lg border-2 border-gray-200 cursor-pointer hover:bg-blue-50 hover:border-blue-400 transform -translate-x-1/2 -translate-y-1/2 transition-all flex flex-col items-center justify-center min-w-[80px]';
+        div.style.left = n.x + '%'; div.style.top = n.y + '%';
+        div.innerHTML = `<div class="text-5xl mb-2 drop-shadow-md">${n.emoji}</div><div class="text-sm font-bold text-gray-700">${n.label}</div>`;
+        div.onclick = () => handleS3NodeClick(n.id, div);
+        container.appendChild(div);
+      });
+      drawS3Edges();
+    }
+
+    function handleS3NodeClick(id, element) {
+      if(!s3SelectedNode) {
+        s3SelectedNode = id;
+        element.classList.add('border-blue-500', 'scale-110', 'bg-blue-100');
+      } else {
+        if(s3SelectedNode !== id) {
+          
+          if(id === 'human' && ['bat', 'gorilla', 'boar', 'leopard', 'snake'].includes(s3SelectedNode)) {
+            showCustomAlert('⚠️', '스필오버(Spillover) 경고!', 
+              '야생동물과 인간이 연결되는 것은 정상적인 생태계 먹이그물이 아닙니다!\n서식지가 파괴되어 발생하는 전염병 전파 경로입니다.\n건강한 생태계는 인간과 야생동물의 서식지가 철저히 분리되어야 해요.'
+            );
+          } else {
+            const isValid = requiredEdges.some(req => req.from === s3SelectedNode && req.to === id);
+            
+            if(isValid) {
+              const exists = s3Edges.find(e => e.from === s3SelectedNode && e.to === id);
+              if(!exists) s3Edges.push({ from: s3SelectedNode, to: id });
+            } else {
+              showCustomAlert('❌', '연결 실패', '[먹히는 생물]에서 [먹는 생물] 방향으로 자연스러운 먹이 관계를 연결해주세요!');
+            }
+          }
+        }
+        
+        document.querySelectorAll('#s3Nodes > div').forEach(d => {
+          d.classList.remove('border-blue-500', 'scale-110', 'bg-blue-100');
+        });
+        s3SelectedNode = null;
+        drawS3Edges();
+        checkS3Win();
+      }
+    }
+
+    function drawS3Edges() {
+      const canvas = document.getElementById('s3Canvas');
+      canvas.width = canvas.parentElement.clientWidth;
+      canvas.height = canvas.parentElement.clientHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      s3Edges.forEach(edge => {
+        const n1 = puzzleNodes.find(n => n.id === edge.from);
+        const n2 = puzzleNodes.find(n => n.id === edge.to);
+        const x1 = (n1.x / 100) * canvas.width; const y1 = (n1.y / 100) * canvas.height;
+        const x2 = (n2.x / 100) * canvas.width; const y2 = (n2.y / 100) * canvas.height;
+
+        const headlen = 18; 
+        const dx = x2 - x1; const dy = y2 - y1;
+        const angle = Math.atan2(dy, dx);
+        
+        const offset = 40; 
+        const startX = x1 + offset * Math.cos(angle);
+        const startY = y1 + offset * Math.sin(angle);
+        const endX = x2 - offset * Math.cos(angle);
+        const endY = y2 - offset * Math.sin(angle);
+
+        ctx.beginPath(); ctx.moveTo(startX, startY); ctx.lineTo(endX, endY);
+        ctx.strokeStyle = '#6366f1'; ctx.lineWidth = 4; ctx.stroke(); 
+        
+        ctx.beginPath();
+        ctx.moveTo(endX - headlen * Math.cos(angle - Math.PI / 6), endY - headlen * Math.sin(angle - Math.PI / 6));
+        ctx.lineTo(endX, endY);
+        ctx.lineTo(endX - headlen * Math.cos(angle + Math.PI / 6), endY - headlen * Math.sin(angle + Math.PI / 6));
+        ctx.fillStyle = '#6366f1'; ctx.fill();
+      });
+    }
+
+    function checkS3Win() {
+      let matchCount = 0;
+      requiredEdges.forEach(req => {
+        if(s3Edges.some(e => e.from === req.from && e.to === req.to)) matchCount++;
+      });
+      if(matchCount === requiredEdges.length) {
+        showS3Success();
+      }
+    }
+
+    function showS3Success() {
+      document.getElementById('s3EndScreen').classList.remove('hidden');
+      document.getElementById('s3ViewMsgBtn').classList.add('hidden');
+    }
+
+    function hideS3Success() {
+      document.getElementById('s3EndScreen').classList.add('hidden');
+      document.getElementById('s3ViewMsgBtn').classList.remove('hidden');
+    }
+
+    function resetS3() {
+      s3Edges = [];
+      s3SelectedNode = null;
+      document.getElementById('s3EndScreen').classList.add('hidden');
+      document.getElementById('s3ViewMsgBtn').classList.add('hidden');
+      document.querySelectorAll('#s3Nodes > div').forEach(d => {
+        d.classList.remove('border-blue-500', 'scale-110', 'bg-blue-100');
+      });
+      drawS3Edges();
+    }
+
+  </script>
+</body>
+</html>
